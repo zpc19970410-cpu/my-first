@@ -947,6 +947,101 @@
       font-size: 14px;
     }
 
+    .resume-tool {
+      margin-top: 26px;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      padding: 20px;
+    }
+
+    .resume-tool h3 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .resume-tool p {
+      margin: 12px 0 0;
+      color: var(--text-soft);
+      line-height: 1.85;
+      max-width: 760px;
+    }
+
+    .resume-tool textarea {
+      width: 100%;
+      margin-top: 16px;
+      min-height: 150px;
+      resize: vertical;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(5, 10, 24, 0.9);
+      color: var(--text);
+      padding: 16px;
+      font: inherit;
+      line-height: 1.8;
+      outline: none;
+    }
+
+    .resume-tool textarea:focus {
+      border-color: var(--line-strong);
+      box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.08);
+    }
+
+    .resume-tool-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .resume-result {
+      display: none;
+      margin-top: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(103, 232, 249, 0.16);
+      background: rgba(103, 232, 249, 0.08);
+      padding: 16px;
+    }
+
+    .resume-result.show {
+      display: block;
+    }
+
+    .resume-result strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .resume-result p {
+      margin: 8px 0 0;
+      color: #dce9f7;
+      max-width: none;
+    }
+
+    .resume-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .resume-keywords span {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 13px;
+      color: #eaf6ff;
+    }
+
+    .resume-message {
+      min-height: 22px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: #ff9db0;
+    }
+
     .cta-actions {
       display: flex;
       flex-direction: column;
@@ -1492,6 +1587,25 @@
                 <div class="contact-tag">Jung120155623@Outlook.com</div>
                 <div class="contact-tag">求职方向：AI 产品经理 / 产品经理</div>
               </div>
+
+              <div class="resume-tool">
+                <h3>请输入岗位 JD，以获取简历信息</h3>
+                <p>请粘贴岗位描述，系统会自动匹配并返回最相关的一份简历供查看和下载。</p>
+                <textarea id="jdText" placeholder="请粘贴岗位 JD，例如：负责 AI 产品规划、B 端平台建设、工作流设计、数据治理等..."></textarea>
+                <div class="resume-tool-actions">
+                  <button class="btn btn-primary" id="matchResumeBtn" type="button">匹配并获取简历</button>
+                  <button class="btn btn-secondary" id="clearJdBtn" type="button">清空 JD</button>
+                </div>
+                <div class="resume-message" id="resumeMessage"></div>
+                <div class="resume-result" id="resumeResult">
+                  <strong id="resumeLabel"></strong>
+                  <p id="resumeFit"></p>
+                  <div class="resume-keywords" id="resumeKeywords"></div>
+                  <div class="resume-tool-actions">
+                    <a class="btn btn-login" id="resumeDownloadLink" href="#" target="_blank" rel="noopener noreferrer">下载匹配简历</a>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="cta-actions">
@@ -1512,6 +1626,7 @@
   </footer>
 
   <script>
+    const BASE_URL = window.location.protocol === "file:" ? "http://127.0.0.1:5000" : "";
     const particleWrap = document.getElementById("particles");
     for (let i = 0; i < 28; i++) {
       const p = document.createElement("span");
@@ -1535,6 +1650,70 @@
     });
 
     document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+
+    const jdText = document.getElementById("jdText");
+    const matchResumeBtn = document.getElementById("matchResumeBtn");
+    const clearJdBtn = document.getElementById("clearJdBtn");
+    const resumeMessage = document.getElementById("resumeMessage");
+    const resumeResult = document.getElementById("resumeResult");
+    const resumeLabel = document.getElementById("resumeLabel");
+    const resumeFit = document.getElementById("resumeFit");
+    const resumeKeywords = document.getElementById("resumeKeywords");
+    const resumeDownloadLink = document.getElementById("resumeDownloadLink");
+
+    clearJdBtn?.addEventListener("click", () => {
+      jdText.value = "";
+      resumeMessage.textContent = "";
+      resumeResult.classList.remove("show");
+    });
+
+    matchResumeBtn?.addEventListener("click", async () => {
+      const content = jdText.value.trim();
+      resumeMessage.textContent = "";
+      resumeResult.classList.remove("show");
+
+      if (content.length < 20) {
+        resumeMessage.textContent = "请至少粘贴一段较完整的岗位 JD。";
+        return;
+      }
+
+      try {
+        const response = await fetch(BASE_URL + "/api/resume/match", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            jdText: content
+          })
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          resumeMessage.textContent = result.message || "匹配失败，请稍后再试。";
+          return;
+        }
+
+        resumeLabel.textContent = result.match.label;
+        resumeFit.textContent = result.match.fitFor;
+        resumeKeywords.innerHTML = "";
+        (result.match.matchedKeywords || []).forEach((keyword) => {
+          const tag = document.createElement("span");
+          tag.textContent = keyword;
+          resumeKeywords.appendChild(tag);
+        });
+        if (!result.match.matchedKeywords || result.match.matchedKeywords.length === 0) {
+          const tag = document.createElement("span");
+          tag.textContent = "未命中特定关键词，已返回默认通用版本";
+          resumeKeywords.appendChild(tag);
+        }
+        resumeDownloadLink.href = BASE_URL + result.downloadUrl;
+        resumeResult.classList.add("show");
+      } catch (error) {
+        resumeMessage.textContent = "无法连接后端服务，请稍后重试。";
+      }
+    });
   </script>
 </body>
 </html>
